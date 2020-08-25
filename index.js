@@ -1,181 +1,133 @@
 const Hapi = require('@hapi/hapi')
-const { Stream, Writable, Readable, Transform, pipeline, finished } = require('stream');
+const { Writable, Readable, Transform, pipeline, finished } = require('stream');
+const through2 = require('through2');
+
+const listenEvents = (stream, streamName) => {
+  stream.on('error', (err) => {
+    console.log(`-${streamName} error `)
+    // console.log(`--${streamName} destroyed`, stream.destroyed)
+    // console.log(`--${streamName} readable ended`, stream.readableEnded)
+    // console.log(`--${streamName} writable ended`, stream.writableEnded)
+    // console.log(`--${streamName} writable finished`, stream.writableFinished)
+    // console.log(`--${streamName} writable`, stream.writable)
+    console.log(`--${streamName} writable length`, stream.writableLength)
+    console.log(`--${streamName} readable length`, stream.readableLength)
+    // On Node 12.16 resume makes the client receive a 200 Ok but no data
+    // output.resume()
+    // setTimeout(() => {
+    // output.end()
+    // }, 100);
+
+    // if (err)
+    //   console.log(`${streamName} error `, err.toString())
+  })
+  stream.on('end', () => {
+    console.log(`${streamName} end `)
+  })
+  stream.on('close', () => {
+    console.log(`${streamName} close `)
+  })
+  stream.on('finish', () => {
+    console.log(`${streamName} finish `)
+  })
+  // stream.on('data', (data) => {
+  //   console.log(`${streamName} data `, data.toString())
+  // })
+}
 
 const init = async () => {
   const server = Hapi.server({
     port: 3000,
     host: 'localhost'
-  });
+  })
 
   server.route({
     method: 'GET',
     path: '/',
     handler: (request, h) => {
-      const read = new Readable({
-        read() {
-          console.log('read')
-        }
-      });
-
       let count = 0
       const transform = new Transform({
         transform(data, enc, cb) {
-          console.log('transform', data.toString())
-          cb(null, data);
-          // cb(new Error('kaboom'));
+          console.log('transform stream _transform', data.toString())
+          cb(null, data)
+          // cb(new Error('kaboom'))
         }
-      });
+      })
       const transform2 = new Transform({
         transform(data, enc, cb) {
           console.log('count ', count)
-          console.log('transform2', data.toString())
+          console.log('transform2 stream _transform', data.toString())
           if (count < 1) {
             cb(null, data);
           } else {
-            cb(new Error('kaboom'));
+            cb(new Error('kaboom'))
+            // setTimeout(() => {
+            //   cb(new Error('kaboom'))
+            // }, 500)
           }
           count++
         }
-      });
-      const transform3 = new Transform({
+      })
+      const output = new Transform({
         transform(data, enc, cb) {
-          console.log('transform3', data.toString())
-          cb(null, data);
+          console.log('output stream _transform', data.toString())
+          cb(null, data)
         }
-      });
+      })
 
-      const write = new Writable({
-        write(data, enc, cb) {
-          console.log('write')
-          cb();
+      const flagStream = through2(
+        (chunk, enc, cb) => cb(null, chunk),
+        function (cb) {
+          console.log('flag stream flush')
+          this.push('hello error\n')
+          cb()
         }
-      });
+      )
 
-      read.on('error', (err) => {
-        console.log('read error ')
-        if (err)
-          console.log('read error ', err.toString())
-      });
-      read.on('end', () => {
-        console.log('read end ')
-      });
-      read.on('close', () => {
-        console.log('read close ')
-      });
-      read.on('finish', () => {
-        console.log('read finish ')
-      });
-
-      transform.on('error', (err) => {
-        console.log('transform error ')
-        if (err)
-          console.log('transform error ', err.toString())
-      });
-      transform.on('end', () => {
-        console.log('transform end ')
-      });
-      transform.on('close', () => {
-        console.log('transform close ')
-      });
-      transform.on('finish', () => {
-        console.log('transform finish ')
-      });
-
-      write.on('error', (err) => {
-        console.log('write error ')
-        if (err)
-          console.log('write error ', err.toString())
-      });
-      write.on('end', () => {
-        console.log('write end ')
-      });
-      write.on('close', () => {
-        console.log('write close ')
-      });
-      write.on('finish', () => {
-        console.log('write finish ')
-      });
-
-      transform2.on('error', (err) => {
-        console.log('tranform2 error ')
-        transform3.push('hello2')
-        console.log('transform3 destroyed', transform3.destroyed)
-        console.log('transform3 readable ended', transform3.readableEnded)
-        console.log('transform3 writable ended', transform3.writableEnded)
-        console.log('transform3 writable finished', transform3.writableFinished)
-        console.log('transform3 writable', transform3.writable)
-        console.log('transform3 writable length', transform3.writableLength)
-        console.log('transform3 readable length', transform3.readableLength)
-        console.log('transform2 writable length', transform2.writableLength)
-        console.log('transform2 readable length', transform2.readableLength)
-        console.log('transform writable length', transform.writableLength)
-        console.log('transform readable length', transform.readableLength)
-        // On Node 12.16 resume makes the client receive a 200 Ok but no data
-        // transform3.resume()
-        transform3.end()
-        // setTimeout(() => {
-        // transform3.end()
-        // }, 100);
-        if (err)
-          console.log('transform2 error ', err.toString())
-      });
-      transform2.on('end', () => {
-        console.log('transform2 end ')
-      });
-      transform2.on('close', () => {
-        console.log('transform2 close ')
-      });
-      transform2.on('finish', () => {
-        console.log('transform2 finish ')
-      });
-
-      transform3.on('error', (err) => {
-        console.log('tranform3 error ')
-        if (err)
-          console.log('transform3 error ', err.toString())
-      });
-      transform3.on('end', () => {
-        console.log('transform3 end ')
-      });
-      transform3.on('close', () => {
-        console.log('transform3 close ')
-      });
-      transform3.on('finish', () => {
-        console.log('transform3 finish ')
-      });
+      listenEvents(transform, 'transform stream')
+      listenEvents(transform2, 'transform2 stream')
+      listenEvents(output, 'output stream')
+      listenEvents(flagStream, 'flag stream')
 
       // stream.finished catches premature close events, it catches the error on Node 12.16
-      const cleanup = finished(transform3, (err) => {
+      const cleanup = finished(output, (err) => {
         // cleanup()
         if (err) {
-          console.error('Stream3 failed.', err);
+          console.error('output stream failed.', err);
         } else {
-          console.log('Stream3 is done reading.');
+          console.log('output stream is done reading')
         }
-      });
-      let stop = false
-      const dst = pipeline(transform, transform2, transform3, (err) => {
+      })
+
+      const substream = pipeline(transform, transform2, (err) => {
         if (err) {
-          console.log('pipeline err ', err.toString())
+          console.log('-substream pipeline err ', err.toString())
+          flagStream.end()
+        }
+        else {
+          console.log('substream pipeline success')
+        }
+      })
+      const dst = pipeline(substream, flagStream, output, (err) => {
+        if (err) {
+          console.log('-main pipeline err ', err.toString())
           // return h.response(JSON.stringify(err, null, 2));
         }
-
         else {
-          console.log('pipeline success')
+          console.log('main pipeline success')
         }
-      });
+      })
 
-      transform.push('hello');
-      transform.push('hello'); // Gets replaced on transform2.transform then an error is raised
+      transform.push('hello1\n')
+      transform.push('hello2\n')
       // transform.end()
-      // read.push(null);
 
-      // transform3 can be replaced with read stream to see difference in behaviour
+      // output can be replaced with read stream to see difference in behaviour
       // On node 12.16 data sent with read stream seems to have no issues
-      const resp = h.response(transform3)
+      const resp = h.response(output)
       return resp.type('text/event-stream')
     }
-  });
+  })
 
   server.route({
     method: 'GET',
@@ -183,14 +135,14 @@ const init = async () => {
     handler: (request, h) => {
       return 'Hello World!';
     }
-  });
+  })
   await server.start();
-  console.log('Server running on %s', server.info.uri);
-};
+  console.log('Server running on %s', server.info.uri)
+}
 
 process.on('unhandledRejection', (err) => {
-  console.log(err);
-  process.exit(1);
-});
+  console.log(err)
+  process.exit(1)
+})
 
-init();
+init()
